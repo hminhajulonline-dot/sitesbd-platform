@@ -1,23 +1,82 @@
-## Description
-Please include a summary of the change and which issue is fixed. Please also include relevant motivation and context.
+## Summary
+
+<!-- Brief description of what this PR does and why -->
+
+## Changes
+
+<!-- Detailed list of changes made -->
+
+- 
+- 
+- 
+
+### Files Changed
+
+<!-- List of files modified/added -->
+
+| File | Description |
+|------|-------------|
+| | |
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Breaking change
 - [ ] Documentation update
+- [ ] Refactoring
+- [ ] CI/CD update
 
-## How Has This Been Tested?
-Please describe the tests that you ran to verify your changes.
+## Testing
+
+<!-- Describe how this was tested -->
+
+- [ ] Unit tests added/updated
+- [ ] Manual testing performed
+- [ ] No testing needed (docs/config only)
+
+### Test Results
+
+<!-- Output of tests or confirmation -->
 
 ## Checklist
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
 
-## Screenshots
-If applicable.
+- [ ] Code follows project coding standards
+- [ ] No `any` types introduced
+- [ ] TypeScript strict mode passes
+- [ ] Build passes (`npm run build`)
+- [ ] Lint passes (`npm run lint`)
+- [ ] Type check passes (`npm run type-check`)
+- [ ] Documentation updated
+- [ ] No console.log/debug code
+- [ ] No sensitive data exposed
+- [ ] PR targets correct branch
+
+## Screenshots (If Applicable)
+
+<!-- Add screenshots or GIFs for UI changes -->
+
+## Related Issues
+
+<!-- Link to issues this PR addresses -->
+
+- Closes #
+- Related to #
+
+## Additional Notes
+
+<!-- Any additional context or information -->
+
+## Reviewer Notes
+
+<!-- Notes for reviewers -->
+
+## Migration Notes (If Breaking Changes)
+
+<!-- Describe how to migrate from previous version -->
+
+## Dependency Changes
+
+<!-- List any dependency updates -->
+
+- 

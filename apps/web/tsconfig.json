@@ -2,8 +2,22 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "allowJs": true,
+    "incremental": true,
+    "jsx": "preserve",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["src/**/*", "next.config.ts"]
+  "include": [
+    "next.config.ts",
+    "src/**/*",
+    ".next/types/**/*.ts"
+  ]
 }
