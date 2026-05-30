@@ -2,9 +2,10 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@sitesbd/shared/*": ["../../packages/shared/src/*"],
+      "@sitesbd/ui/*": ["../../packages/ui/src/*"],
+      "@sitesbd/database/*": ["../../packages/database/src/*"]
     },
     "allowJs": true,
     "incremental": true,
