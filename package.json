@@ -31,5 +31,11 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "npm@10.0.0"
+  "packageManager": "npm@10.0.0",
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "lucide-react": "^1.17.0",
+    "react-hook-form": "^7.76.1",
+    "zod": "^4.4.3"
+  }
 }
