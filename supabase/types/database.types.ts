@@ -46,6 +46,47 @@ export interface Profile extends BaseEntity {
 }
 
 // ============================================
+// User Sessions, Devices & Preferences
+// ============================================
+
+export interface UserSession extends BaseEntityNoUpdate {
+  user_id: string;
+  session_token: string;
+  refresh_token: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  device_id: string | null;
+  expires_at: string;
+  last_activity_at: string;
+  is_active: boolean;
+}
+
+export interface UserDevice extends BaseEntity {
+  user_id: string;
+  device_id: string;
+  device_name: string | null;
+  device_type: string;
+  browser: string | null;
+  os: string | null;
+  ip_address: string | null;
+  first_seen_at: string;
+  last_active_at: string;
+  is_trusted: boolean;
+  is_current: boolean;
+}
+
+export interface UserPreferences extends BaseEntity {
+  user_id: string;
+  theme: string;
+  language: string;
+  timezone: string;
+  notification_email: boolean;
+  notification_whatsapp: boolean;
+  notification_in_app: boolean;
+  notification_marketing: boolean;
+}
+
+// ============================================
 // Roles & Permissions
 // ============================================
 
@@ -446,6 +487,9 @@ export interface Announcement extends BaseEntity {
 
 export type Tables = {
   profiles: Profile;
+  user_sessions: UserSession;
+  user_devices: UserDevice;
+  user_preferences: UserPreferences;
   roles: Role;
   permissions: Permission;
   role_permissions: RolePermission;

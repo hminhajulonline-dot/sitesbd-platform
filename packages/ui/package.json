@@ -15,6 +15,12 @@
     "./components/auth/auth-header": "./src/components/auth/auth-header.tsx",
     "./components/layout": "./src/components/layout/index.ts",
     "./components/layout/auth-layout": "./src/components/layout/auth-layout.tsx",
+    "./components/onboarding": "./src/components/onboarding/index.ts",
+    "./components/onboarding/profile-wizard": "./src/components/onboarding/profile-wizard.tsx",
+    "./components/onboarding/progress-indicator": "./src/components/onboarding/progress-indicator.tsx",
+    "./components/onboarding/wizard-step": "./src/components/onboarding/wizard-step.tsx",
+    "./components/onboarding/avatar-uploader": "./src/components/onboarding/avatar-uploader.tsx",
+    "./components/onboarding/profile-review": "./src/components/onboarding/profile-review.tsx",
     "./lib": "./src/lib/utils.ts"
   },
   "scripts": {
