@@ -14,6 +14,11 @@ export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded';
 export type PaymentMethod = 'card' | 'bank_transfer' | 'bkash' | 'nagad' | 'rocket' | 'other';
 export type DnsSyncStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
 export type CommentType = 'note' | 'resolution' | 'internal';
+export type NotificationChannel = 'email' | 'whatsapp' | 'in_app';
+export type NotificationType = 'info' | 'warning' | 'success' | 'error';
+export type AnnouncementType = 'info' | 'maintenance' | 'promotion' | 'warning';
+export type PlatformStatus = 'active' | 'inactive' | 'deprecated';
+export type GuideStatus = 'draft' | 'published' | 'archived';
 
 // Base types
 export interface BaseEntity {
@@ -359,6 +364,83 @@ export interface ActivityLog {
 }
 
 // ============================================
+// Quick Connect
+// ============================================
+
+export interface QuickConnectPlatform extends BaseEntity {
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  description: string | null;
+  status: PlatformStatus;
+  sort_order: number;
+}
+
+export interface QuickConnectTemplate extends BaseEntity {
+  platform_id: string;
+  name: string;
+  description: string | null;
+  status: PlatformStatus;
+}
+
+export interface QuickConnectField {
+  id: string;
+  platform_id: string;
+  field_name: string;
+  field_label: string;
+  field_type: string;
+  required: boolean;
+  placeholder: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ConnectionGuide extends BaseEntity {
+  platform_id: string;
+  title: string;
+  slug: string;
+  content: string;
+  status: GuideStatus;
+  sort_order: number;
+}
+
+// ============================================
+// Notifications
+// ============================================
+
+export interface NotificationTemplate extends BaseEntity {
+  name: string;
+  channel: NotificationChannel;
+  subject: string | null;
+  content: string;
+  status: PlatformStatus;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  is_read: boolean;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+// ============================================
+// Announcements
+// ============================================
+
+export interface Announcement extends BaseEntity {
+  title: string;
+  content: string;
+  type: AnnouncementType;
+  status: PlatformStatus;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+// ============================================
 // Database Helpers
 // ============================================
 
@@ -392,4 +474,11 @@ export type Tables = {
   dns_snapshots: DnsSnapshot;
   audit_logs: AuditLog;
   activity_logs: ActivityLog;
+  quick_connect_platforms: QuickConnectPlatform;
+  quick_connect_templates: QuickConnectTemplate;
+  quick_connect_fields: QuickConnectField;
+  connection_guides: ConnectionGuide;
+  notification_templates: NotificationTemplate;
+  notifications: Notification;
+  announcements: Announcement;
 };
