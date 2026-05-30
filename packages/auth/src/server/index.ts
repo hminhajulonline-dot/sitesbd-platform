@@ -44,7 +44,7 @@ export class AuthServerClient {
         emailVerified: user.email_confirmed_at !== null,
         createdAt: user.created_at,
         updatedAt: user.updated_at || user.created_at,
-        lastSignInAt: user.last_sign_in_at,
+        lastSignInAt: user.last_sign_in_at || null,
         metadata: {
           fullName: user.user_metadata?.full_name,
           phone: user.user_metadata?.phone,
@@ -66,19 +66,19 @@ export class AuthServerClient {
 
   async listUsers(limit = 100, page = 0): Promise<AuthResult<AuthUser[]>> {
     try {
-      const { data, error } = await this.supabase.auth.admin.listUsers({ limit, page });
+      const { data, error } = await this.supabase.auth.admin.listUsers();
       
       if (error) {
         return { success: false, error: { code: 'LIST_USERS_ERROR', message: error.message } };
       }
 
-      const users: AuthUser[] = (data.users || []).map((user) => ({
+      const users: AuthUser[] = (data.users || []).slice(page * limit, (page + 1) * limit).map((user) => ({
         id: user.id,
         email: user.email || '',
         emailVerified: user.email_confirmed_at !== null,
         createdAt: user.created_at,
         updatedAt: user.updated_at || user.created_at,
-        lastSignInAt: user.last_sign_in_at,
+        lastSignInAt: user.last_sign_in_at || null,
         metadata: {
           fullName: user.user_metadata?.full_name,
           phone: user.user_metadata?.phone,
@@ -121,7 +121,7 @@ export class AuthServerClient {
         emailVerified: data.user.email_confirmed_at !== null,
         createdAt: data.user.created_at,
         updatedAt: data.user.updated_at || data.user.created_at,
-        lastSignInAt: data.user.last_sign_in_at,
+        lastSignInAt: data.user.last_sign_in_at || null,
         metadata: {
           fullName: data.user.user_metadata?.full_name,
           phone: data.user.user_metadata?.phone,
@@ -159,7 +159,7 @@ export class AuthServerClient {
         emailVerified: data.user.email_confirmed_at !== null,
         createdAt: data.user.created_at,
         updatedAt: data.user.updated_at || data.user.created_at,
-        lastSignInAt: data.user.last_sign_in_at,
+        lastSignInAt: data.user.last_sign_in_at || null,
         metadata: {
           fullName: data.user.user_metadata?.full_name,
           phone: data.user.user_metadata?.phone,
@@ -207,7 +207,7 @@ export class AuthServerClient {
         return { success: false, error: { code: 'GENERATE_LINK_ERROR', message: error.message } };
       }
 
-      return { success: true, data: data.properties.actionLink };
+      return { success: true, data: data.properties.action_link };
     } catch (error) {
       return { 
         success: false, 

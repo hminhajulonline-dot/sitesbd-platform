@@ -60,9 +60,9 @@ export class RoleResolver {
           roles.push({
             id: role.id,
             name: role.name,
-            roleType: role.role_type as RoleType,
+            roleType: (role as unknown as Record<string, unknown>).role_type as RoleType,
             description: role.description,
-            isSystem: role.is_system,
+            isSystem: (role as unknown as Record<string, unknown>).is_system as boolean,
             permissions: [],
           });
         }

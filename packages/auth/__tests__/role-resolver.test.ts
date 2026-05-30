@@ -5,7 +5,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RoleResolver } from '../src/permissions/role-resolver';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AuthRole, RoleType } from '../src/types';
 
 // Mock Supabase client
 const createMockSupabase = () => {

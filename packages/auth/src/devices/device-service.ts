@@ -3,7 +3,7 @@
 // ============================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { UserDevice, UserPreferences, AuthResult, NotificationPreferences } from '../types';
+import type { UserDevice, UserPreferences, AuthResult } from '../types';
 
 export interface DeviceServiceConfig {
   supabase: SupabaseClient;
@@ -327,7 +327,7 @@ export class DeviceService {
   // Helpers
   // ============================================
 
-  private mapToUserDevice(data: Record<string, unknown>, userId: string): UserDevice {
+  private mapToUserDevice(data: Record<string, unknown>, _userId: string): UserDevice {
     return {
       id: data.id as string,
       userId: data.user_id as string,

@@ -2,10 +2,8 @@
 // Auth Types for SitesBD Platform
 // ============================================
 
-import type { RoleType } from '../../../supabase/types/database.types';
-
-// Re-export database types
-export type { RoleType } from '../../../supabase/types/database.types';
+// Role types matching database enums
+export type RoleType = 'system_owner' | 'super_admin' | 'admin' | 'billing_manager' | 'support_agent' | 'user';
 
 // ============================================
 // Auth User

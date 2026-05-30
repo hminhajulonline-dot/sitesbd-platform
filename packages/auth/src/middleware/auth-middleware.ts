@@ -2,9 +2,9 @@
 // Auth Middleware
 // ============================================
 
-import type { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AuthContext, RouteProtectionLevel, RoleType } from '../types';
+import type { AuthContext, RoleType } from '../types';
 import { RoleResolver } from '../permissions/role-resolver';
 import { PermissionResolver } from '../permissions/permission-resolver';
 
