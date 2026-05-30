@@ -7,6 +7,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./components": "./src/components/index.ts",
+    "./components/auth": "./src/components/auth/index.ts",
+    "./components/auth/password-input": "./src/components/auth/password-input.tsx",
+    "./components/auth/auth-button": "./src/components/auth/auth-button.tsx",
+    "./components/auth/auth-divider": "./src/components/auth/auth-divider.tsx",
+    "./components/auth/auth-alert": "./src/components/auth/auth-alert.tsx",
+    "./components/auth/auth-header": "./src/components/auth/auth-header.tsx",
+    "./components/layout": "./src/components/layout/index.ts",
+    "./components/layout/auth-layout": "./src/components/layout/auth-layout.tsx",
     "./lib": "./src/lib/utils.ts"
   },
   "scripts": {
