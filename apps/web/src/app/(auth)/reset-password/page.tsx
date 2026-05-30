@@ -4,18 +4,18 @@
 // Reset Password Page
 // ============================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AuthHeader } from '@sitesbd/ui/auth-header';
-import { PasswordInput } from '@sitesbd/ui/password-input';
-import { AuthButton } from '@sitesbd/ui/auth-button';
-import { AuthDivider } from '@sitesbd/ui/auth-divider';
-import { AuthAlert } from '@sitesbd/ui/auth-alert';
+import { AuthHeader } from '@sitesbd/ui/components/auth/auth-header';
+import { PasswordInput } from '@sitesbd/ui/components/auth/password-input';
+import { AuthButton } from '@sitesbd/ui/components/auth/auth-button';
+import { AuthDivider } from '@sitesbd/ui/components/auth/auth-divider';
+import { AuthAlert } from '@sitesbd/ui/components/auth/auth-alert';
 
 // Password strength validation
 const passwordSchema = z
@@ -39,22 +39,22 @@ const resetPasswordSchema = z
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
-// Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+// Supabase client - only create if env vars are available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
-export default function ResetPasswordPage() {
-  const router = useRouter();
+function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isValidToken, setIsValidToken] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
+  const router = useRouter();
 
   const code = searchParams.get('code');
-  const token = searchParams.get('token');
 
   const {
     register,
@@ -71,6 +71,11 @@ export default function ResetPasswordPage() {
   // Verify the token on mount
   useEffect(() => {
     const verifyToken = async () => {
+      if (!supabase) {
+        setIsValidToken(false);
+        return;
+      }
+
       if (code) {
         // Handle the OAuth callback code
         try {
@@ -113,6 +118,11 @@ export default function ResetPasswordPage() {
   const strength = getPasswordStrength(password);
 
   const onSubmit = async (data: ResetPasswordFormData) => {
+    if (!supabase) {
+      setError('Supabase is not configured. Please set environment variables.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -130,7 +140,7 @@ export default function ResetPasswordPage() {
       // Sign out and redirect to login
       await supabase.auth.signOut();
       router.push('/login?reset=true');
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
     }
@@ -196,7 +206,7 @@ export default function ResetPasswordPage() {
               setPassword(e.target.value);
               register('password').onChange(e);
             }}
-            {...register('password')}
+            registration={register('password')}
           />
           {/* Password Strength Indicator */}
           {password && (
@@ -228,7 +238,7 @@ export default function ResetPasswordPage() {
           placeholder="Re-enter your password"
           error={errors.confirmPassword?.message}
           autoComplete="new-password"
-          {...register('confirmPassword')}
+          registration={register('confirmPassword')}
         />
 
         {/* Submit Button */}
@@ -255,5 +265,24 @@ export default function ResetPasswordPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+function ResetPasswordFallback() {
+  return (
+    <div className="space-y-6">
+      <AuthHeader title="Reset password" subtitle="Loading..." />
+      <div className="flex justify-center py-4">
+        <div className="w-8 h-8 border-4 border-[#2563eb] border-t-transparent rounded-full animate-spin" />
+      </div>
+    </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

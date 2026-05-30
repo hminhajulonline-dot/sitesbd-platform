@@ -11,11 +11,11 @@ import { createClient } from '@supabase/supabase-js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AuthHeader } from '@sitesbd/ui/auth-header';
-import { PasswordInput } from '@sitesbd/ui/password-input';
-import { AuthButton } from '@sitesbd/ui/auth-button';
-import { AuthDivider } from '@sitesbd/ui/auth-divider';
-import { AuthAlert } from '@sitesbd/ui/auth-alert';
+import { AuthHeader } from '@sitesbd/ui/components/auth/auth-header';
+import { PasswordInput } from '@sitesbd/ui/components/auth/password-input';
+import { AuthButton } from '@sitesbd/ui/components/auth/auth-button';
+import { AuthDivider } from '@sitesbd/ui/components/auth/auth-divider';
+import { AuthAlert } from '@sitesbd/ui/components/auth/auth-alert';
 
 // Validation schema
 const loginSchema = z.object({
@@ -26,11 +26,12 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-// Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+// Supabase client - only create if env vars are available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,6 +52,11 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    if (!supabase) {
+      setError('Supabase is not configured. Please set environment variables.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -85,7 +91,7 @@ export default function LoginPage() {
       } else {
         router.push('/dashboard');
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
     }
@@ -151,7 +157,7 @@ export default function LoginPage() {
           label="Password"
           placeholder="Enter your password"
           error={errors.password?.message}
-          {...register('password')}
+          registration={register('password')}
         />
 
         {/* Remember Me & Forgot Password */}

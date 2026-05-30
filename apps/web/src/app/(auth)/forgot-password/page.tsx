@@ -6,15 +6,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AuthHeader } from '@sitesbd/ui/auth-header';
-import { AuthButton } from '@sitesbd/ui/auth-button';
-import { AuthDivider } from '@sitesbd/ui/auth-divider';
-import { AuthAlert } from '@sitesbd/ui/auth-alert';
+import { AuthHeader } from '@sitesbd/ui/components/auth/auth-header';
+import { AuthButton } from '@sitesbd/ui/components/auth/auth-button';
+import { AuthDivider } from '@sitesbd/ui/components/auth/auth-divider';
+import { AuthAlert } from '@sitesbd/ui/components/auth/auth-alert';
 
 // Validation schema
 const forgotPasswordSchema = z.object({
@@ -23,14 +22,14 @@ const forgotPasswordSchema = z.object({
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
-// Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+// Supabase client - only create if env vars are available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,6 +46,11 @@ export default function ForgotPasswordPage() {
   });
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
+    if (!supabase) {
+      setError('Supabase is not configured. Please set environment variables.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -63,7 +67,7 @@ export default function ForgotPasswordPage() {
 
       setSuccess(true);
       setIsLoading(false);
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
     }

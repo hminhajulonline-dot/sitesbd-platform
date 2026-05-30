@@ -6,20 +6,22 @@
 
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { type UseFormRegisterReturn } from 'react-hook-form';
 
 interface PasswordInputProps {
   id: string;
   name: string;
   label?: string;
   placeholder?: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   error?: string;
   disabled?: boolean;
   required?: boolean;
   autoComplete?: string;
   className?: string;
+  registration?: UseFormRegisterReturn;
 }
 
 export function PasswordInput({
@@ -35,6 +37,7 @@ export function PasswordInput({
   required = false,
   autoComplete = 'current-password',
   className = '',
+  registration,
 }: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -77,6 +80,7 @@ export function PasswordInput({
               : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 focus:border-[#2563eb] focus:ring-[#2563eb]/20'
             }
           `}
+          {...registration}
         />
         <button
           type="button"

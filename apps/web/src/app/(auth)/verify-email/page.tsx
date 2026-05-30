@@ -9,16 +9,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { Mail, RefreshCw, CheckCircle } from 'lucide-react';
-import { AuthHeader } from '@sitesbd/ui/auth-header';
-import { AuthButton } from '@sitesbd/ui/auth-button';
-import { AuthDivider } from '@sitesbd/ui/auth-divider';
-import { AuthAlert } from '@sitesbd/ui/auth-alert';
+import { AuthHeader } from '@sitesbd/ui/components/auth/auth-header';
+import { AuthButton } from '@sitesbd/ui/components/auth/auth-button';
+import { AuthDivider } from '@sitesbd/ui/components/auth/auth-divider';
+import { AuthAlert } from '@sitesbd/ui/components/auth/auth-alert';
 
-// Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+// Supabase client - only create if env vars are available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -31,6 +32,8 @@ export default function VerifyEmailPage() {
   // Get current user email on mount
   useEffect(() => {
     const getUser = async () => {
+      if (!supabase) return;
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) {
         setEmail(user.email);
@@ -56,7 +59,7 @@ export default function VerifyEmailPage() {
   }, [resendCooldown]);
 
   const handleResendVerification = async () => {
-    if (!email || resendCooldown > 0) return;
+    if (!email || resendCooldown > 0 || !supabase) return;
 
     setIsResending(true);
     setError(null);
@@ -75,13 +78,15 @@ export default function VerifyEmailPage() {
 
       setIsResending(false);
       setResendCooldown(60); // 60 second cooldown
-    } catch (err) {
+    } catch {
       setError('Failed to resend verification email. Please try again.');
       setIsResending(false);
     }
   };
 
   const handleCheckVerification = async () => {
+    if (!supabase) return;
+    
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user?.email_confirmed_at) {

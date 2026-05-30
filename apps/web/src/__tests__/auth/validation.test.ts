@@ -64,8 +64,8 @@ describe('Login Validation', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.errors[0].path).toContain('email');
-      expect(result.error.errors[0].message).toBe('Please enter a valid email address');
+      expect(result.error.issues[0].path).toContain('email');
+      expect(result.error.issues[0].message).toBe('Please enter a valid email address');
     }
   });
 
@@ -77,8 +77,8 @@ describe('Login Validation', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.errors[0].path).toContain('password');
-      expect(result.error.errors[0].message).toBe('Password is required');
+      expect(result.error.issues[0].path).toContain('password');
+      expect(result.error.issues[0].message).toBe('Password is required');
     }
   });
 
@@ -190,7 +190,8 @@ describe('Register Validation', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      const confirmError = result.error.errors.find((e) => e.path.includes('confirmPassword'));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const confirmError = result.error.issues.find((e: any) => e.path?.includes('confirmPassword'));
       expect(confirmError).toBeDefined();
       expect(confirmError?.message).toBe('Passwords do not match');
     }

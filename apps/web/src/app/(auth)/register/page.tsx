@@ -11,11 +11,11 @@ import { createClient } from '@supabase/supabase-js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AuthHeader } from '@sitesbd/ui/auth-header';
-import { PasswordInput } from '@sitesbd/ui/password-input';
-import { AuthButton } from '@sitesbd/ui/auth-button';
-import { AuthDivider } from '@sitesbd/ui/auth-divider';
-import { AuthAlert } from '@sitesbd/ui/auth-alert';
+import { AuthHeader } from '@sitesbd/ui/components/auth/auth-header';
+import { PasswordInput } from '@sitesbd/ui/components/auth/password-input';
+import { AuthButton } from '@sitesbd/ui/components/auth/auth-button';
+import { AuthDivider } from '@sitesbd/ui/components/auth/auth-divider';
+import { AuthAlert } from '@sitesbd/ui/components/auth/auth-alert';
 
 // Password strength validation
 const passwordSchema = z
@@ -52,11 +52,12 @@ const registerSchema = z
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-// Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+// Supabase client - only create if env vars are available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -102,6 +103,11 @@ export default function RegisterPage() {
   const strength = getPasswordStrength(password);
 
   const onSubmit = async (data: RegisterFormData) => {
+    if (!supabase) {
+      setError('Supabase is not configured. Please set environment variables.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -149,7 +155,7 @@ export default function RegisterPage() {
 
       // Redirect to verification
       router.push('/verify-email');
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
     }
@@ -291,7 +297,7 @@ export default function RegisterPage() {
             placeholder="Create a strong password"
             error={errors.password?.message}
             autoComplete="new-password"
-            {...register('password')}
+            registration={register('password')}
           />
           {/* Password Strength Indicator */}
           {password && (
@@ -323,7 +329,7 @@ export default function RegisterPage() {
           placeholder="Re-enter your password"
           error={errors.confirmPassword?.message}
           autoComplete="new-password"
-          {...register('confirmPassword')}
+          registration={register('confirmPassword')}
         />
 
         {/* Terms Checkbox */}
