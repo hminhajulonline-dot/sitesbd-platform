@@ -1,0 +1,27 @@
+# Code Owners
+# Auto-assign reviewers based on file changes
+
+# Default owners for everything else
+* @hminhajulonline-dot
+
+# Applications
+/apps/web/ @hminhajulonline-dot
+/apps/dashboard/ @hminhajulonline-dot
+/apps/admin/ @hminhajulonline-dot
+
+# Packages
+/packages/shared/ @hminhajulonline-dot
+/packages/ui/ @hminhajulonline-dot
+/packages/auth/ @hminhajulonline-dot
+/packages/database/ @hminhajulonline-dot
+/packages/cloudflare/ @hminhajulonline-dot
+
+# Documentation
+/docs/ @hminhajulonline-dot
+*.md @hminhajulonline-dot
+
+# GitHub configuration
+/.github/ @hminhajulonline-dot
+
+# Root configuration
+/root @hminhajulonline-dot
