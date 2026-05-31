@@ -33,12 +33,17 @@ function isValidPurpose(purpose: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('[OTP Verify] Starting verification');
+  
   try {
     const body = await request.json();
 
     const { email, otpCode, purpose } = body;
 
+    console.log('[OTP Verify] Input:', { email, purpose, otpCodeLength: otpCode?.length });
+
     if (!email || !isValidEmail(email)) {
+      console.log('[OTP Verify] Invalid email');
       return NextResponse.json(
         { error: 'Invalid email address' },
         { status: 400 }
@@ -46,6 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!otpCode || otpCode.length !== OTP_CONFIG.LENGTH) {
+      console.log('[OTP Verify] Invalid OTP code');
       return NextResponse.json(
         { error: 'Invalid OTP code' },
         { status: 400 }
@@ -53,6 +59,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!purpose || !isValidPurpose(purpose)) {
+      console.log('[OTP Verify] Invalid purpose:', purpose);
       return NextResponse.json(
         { error: 'Invalid purpose' },
         { status: 400 }
@@ -60,6 +67,8 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+
+    console.log('[OTP Verify] Querying OTP for:', email.toLowerCase(), 'purpose:', purpose);
 
     // Find the OTP record
     const { data: otp, error } = await supabase
@@ -70,7 +79,15 @@ export async function POST(request: NextRequest) {
       .eq('status', 'pending')
       .single();
 
+    console.log('[OTP Verify] Query result:', { 
+      found: !!otp, 
+      error: error?.message,
+      otpStatus: otp?.status,
+      otpCodeMatch: otp?.otp_code === otpCode,
+    });
+
     if (error || !otp) {
+      console.log('[OTP Verify] OTP not found or error:', error?.message);
       return NextResponse.json(
         { 
           success: false,
@@ -83,6 +100,7 @@ export async function POST(request: NextRequest) {
 
     // Check if expired
     if (new Date(otp.expires_at) < new Date()) {
+      console.log('[OTP Verify] OTP expired');
       // Mark as expired
       await supabase
         .from('email_otps')
@@ -101,6 +119,7 @@ export async function POST(request: NextRequest) {
 
     // Check attempt count
     if (otp.attempt_count >= OTP_CONFIG.MAX_ATTEMPTS) {
+      console.log('[OTP Verify] Max attempts exceeded');
       await supabase
         .from('email_otps')
         .update({ status: 'expired' })
@@ -118,6 +137,7 @@ export async function POST(request: NextRequest) {
 
     // Verify the code
     if (otp.otp_code !== otpCode) {
+      console.log('[OTP Verify] Invalid OTP code');
       // Increment attempt count
       await supabase
         .from('email_otps')
@@ -138,6 +158,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark as verified
+    console.log('[OTP Verify] OTP valid, marking as verified');
     await supabase
       .from('email_otps')
       .update({
@@ -146,6 +167,7 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', otp.id);
 
+    console.log('[OTP Verify] Verification complete');
     return NextResponse.json({
       success: true,
       message: 'OTP verified successfully',
@@ -154,7 +176,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('OTP verify error:', error);
+    console.error('[OTP Verify] Unexpected error:', error);
     return NextResponse.json(
       { error: 'Server error' },
       { status: 500 }

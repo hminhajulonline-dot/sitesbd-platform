@@ -119,26 +119,39 @@ export async function POST(request: NextRequest) {
     });
 
     const authData = await adminResponse.json();
-    console.log('[Create Account] Admin API response:', {
-      success: adminResponse.ok,
+    console.log('[Create Account] Admin API full response:', {
       status: adminResponse.status,
-      hasUser: !!authData?.id,
-      error: authData?.msg || authData?.message,
+      ok: adminResponse.ok,
+      data: authData,
     });
 
     if (!adminResponse.ok) {
-      const errorMsg = authData?.msg || authData?.message || 'Failed to create user';
-      console.log('[Create Account] Admin API error:', errorMsg);
+      // Extract all error details from Supabase response
+      const errorDetails = {
+        message: authData?.message || authData?.msg || 'Unknown error',
+        code: authData?.code,
+        status: adminResponse.status,
+        fullResponse: authData,
+      };
+      console.error('[Create Account] Supabase error:', errorDetails);
+      
+      // Return the exact error from Supabase, not a generic message
+      const errorMsg = errorDetails.message;
+      console.log('[Create Account] Returning error:', errorMsg);
       return NextResponse.json(
-        { error: errorMsg },
-        { status: 400 }
+        { 
+          error: errorMsg,
+          code: errorDetails.code,
+          details: 'See server logs for full error',
+        },
+        { status: adminResponse.status }
       );
     }
 
     if (!authData.id) {
       console.log('[Create Account] No user ID returned');
       return NextResponse.json(
-        { error: 'Failed to create user' },
+        { error: 'Failed to create user - no ID returned' },
         { status: 500 }
       );
     }
