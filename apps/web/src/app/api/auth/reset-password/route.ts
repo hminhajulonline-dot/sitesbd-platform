@@ -139,7 +139,6 @@ export async function POST(request: NextRequest) {
       updateError: updateError ? {
         message: updateError.message,
         code: updateError.code,
-        status: updateError.status,
         name: updateError.name,
       } : null,
     });
@@ -148,7 +147,7 @@ export async function POST(request: NextRequest) {
       logPasswordReset('UPDATE_ERROR', {
         message: updateError.message,
         code: updateError.code,
-        status: updateError.status,
+        name: updateError.name,
       });
       return NextResponse.json(
         {

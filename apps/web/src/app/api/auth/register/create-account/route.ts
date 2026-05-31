@@ -13,19 +13,61 @@ function logRegistrationFlow(stage: string, data: Record<string, unknown>) {
   console.log(`[Registration Flow - ${stage}]:`, JSON.stringify(data, null, 2));
 }
 
-// Supabase client
-function getSupabaseAdmin(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(url, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+// Validate environment variables on startup
+function validateEnvironment() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL is missing");
+  }
+
+  if (!serviceRoleKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
+  }
+
+  if (!anonKey) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is missing");
+  }
+
+  // CRITICAL: Log key details for debugging
+  console.log('[Registration Flow - ENV_VALIDATED]', {
+    supabaseUrl: supabaseUrl ? '✓ set' : '✗ missing',
+    serviceRoleKeyExists: !!serviceRoleKey,
+    serviceRoleKeyPrefix: serviceRoleKey?.substring(0, 20),
+    anonKeyExists: !!anonKey,
+    anonKeyPrefix: anonKey?.substring(0, 20),
+    keysAreDifferent: serviceRoleKey !== anonKey,
+    usingServiceRoleForAdmin: true,
   });
 }
 
-function getSupabaseClient(): SupabaseClient {
+// Supabase admin client (uses service role key)
+function getSupabaseAdmin(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, anonKey);
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  
+  // CRITICAL: Log exactly which key is being used
+  console.log('[Registration Flow - CLIENT_INIT]', {
+    keyType: 'service-role',
+    url: url,
+    serviceRoleKeyExists: !!serviceRoleKey,
+    serviceRoleKeyPrefix: serviceRoleKey?.substring(0, 20) + '...',
+    expectedKeyLength: serviceRoleKey?.length,
+  });
+
+  const client = createClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  // Log the actual apikey header being sent
+  console.log('[Registration Flow - CLIENT_CREATED]', {
+    hasAuth: !!client.auth,
+    authType: typeof client.auth,
+  });
+
+  return client;
 }
 
 // ============================================
@@ -36,6 +78,9 @@ function getSupabaseClient(): SupabaseClient {
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate environment on every request
+    validateEnvironment();
+
     const body = await request.json();
 
     const { email, password, fullName, phone, otpVerified } = body;
@@ -143,10 +188,11 @@ export async function POST(request: NextRequest) {
       hasFullName: !!fullName,
       hasPhone: !!phone,
       email_confirm: true,
+      usingServiceRole: true,
     });
 
-    const supabase = getSupabaseClient();
-    const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
+    // Use admin client (service role key) for user creation
+    const { data: authData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true, // Disable confirmation email - OTP is the verification
@@ -163,7 +209,6 @@ export async function POST(request: NextRequest) {
       signUpError: signUpError ? {
         message: signUpError.message,
         code: signUpError.code,
-        status: signUpError.status,
         name: signUpError.name,
       } : null,
     });
@@ -172,7 +217,6 @@ export async function POST(request: NextRequest) {
       logRegistrationFlow('SIGNUP_ERROR', {
         message: signUpError.message,
         code: signUpError.code,
-        status: signUpError.status,
         name: signUpError.name,
       });
 
