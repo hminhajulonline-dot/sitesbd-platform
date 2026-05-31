@@ -91,15 +91,15 @@ export async function POST(request: NextRequest) {
       otpStatus: otp?.status,
       otpVerifiedAt: otp?.verified_at,
       otpExpiresAt: otp?.expires_at,
-      otpError: otpError ? { message: otpError.message, code: otpError.code, status: otpError.status } : null,
+      otpError: otpError ? { message: otpError.message, code: otpError.code, details: otpError.details, hint: otpError.hint } : null,
     });
 
     if (otpError) {
       logRegistrationFlow('OTP_QUERY_ERROR', {
         message: otpError.message,
         code: otpError.code,
-        status: otpError.status,
-        details: otpError,
+        details: otpError.details,
+        hint: otpError.hint,
       });
       return NextResponse.json(
         {
