@@ -296,14 +296,67 @@ export async function POST(request: NextRequest) {
       email: authData.user.email,
     });
 
-    return NextResponse.json({
+    // BUG FIX: Create session immediately after account creation
+    // Sign in the user to get session tokens
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseAnon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data: sessionData, error: signInError } = await supabaseAnon.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      logRegistrationFlow('SESSION_CREATION_FAILED', {
+        message: signInError.message,
+        code: signInError.code,
+      });
+      // Account created but session failed - return error
+      return NextResponse.json(
+        {
+          success: true, // Account was created
+          user: { id: authData.user.id, email: authData.user.email },
+          message: 'Account created but automatic login failed. Please sign in.',
+          requiresLogin: true,
+        },
+        { status: 201 }
+      );
+    }
+
+    logRegistrationFlow('SESSION_CREATED', {
+      userId: authData.user.id,
+      hasAccessToken: !!sessionData.session?.access_token,
+      hasRefreshToken: !!sessionData.session?.refresh_token,
+    });
+
+    // Create response with session cookies
+    const response = NextResponse.json({
       success: true,
       user: {
         id: authData.user.id,
         email: authData.user.email,
       },
-      message: 'Account created successfully.',
+      message: 'Account created successfully. You are now logged in.',
     });
+
+    // Set session cookies for middleware authentication
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+    };
+
+    response.cookies.set('sb-access-token', sessionData.session!.access_token, cookieOptions);
+    response.cookies.set('sb-refresh-token', sessionData.session!.refresh_token, {
+      ...cookieOptions,
+      httpOnly: false, // Refresh token needs to be accessible for token refresh
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Registration error:', error);

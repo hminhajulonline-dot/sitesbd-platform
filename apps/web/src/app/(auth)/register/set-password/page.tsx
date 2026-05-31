@@ -77,7 +77,8 @@ export default function SetPasswordPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/register/create-account', {
+      // Call create-account API (which creates account + session)
+      const signInResponse = await fetch('/api/auth/register/create-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -88,30 +89,11 @@ export default function SetPasswordPage() {
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Failed to create account');
-        setIsLoading(false);
-        return;
-      }
-
-      // Sign in the user immediately after account creation
-      const signInResponse = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
+      const data = await signInResponse.json();
 
       if (!signInResponse.ok) {
-        // Account created but sign in failed - redirect to login
-        sessionStorage.removeItem('registration_email');
-        sessionStorage.removeItem('registration_name');
-        sessionStorage.removeItem('otp_verified');
-        router.push('/login?registered=true');
+        setError(data.error || 'Failed to create account');
+        setIsLoading(false);
         return;
       }
 
@@ -120,8 +102,14 @@ export default function SetPasswordPage() {
       sessionStorage.removeItem('registration_name');
       sessionStorage.removeItem('otp_verified');
 
-      // Redirect to setup/profile completion
-      router.push('/setup');
+      // If session was created (cookies set), redirect to onboarding
+      // If requiresLogin flag is set, redirect to login
+      if (data.requiresLogin) {
+        router.push('/login?registered=true');
+      } else {
+        // Session cookies are now set - redirect to onboarding
+        router.push('/onboarding');
+      }
 
     } catch {
       setError('An unexpected error occurred. Please try again.');
