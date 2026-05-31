@@ -1,0 +1,216 @@
+// ============================================
+// OTP Generate API Route
+// ============================================
+// POST /api/otp/generate - Generate and send OTP
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// OTP Configuration
+const OTP_CONFIG = {
+  LENGTH: 6,
+  EXPIRATION_SECONDS: 5 * 60,
+  MAX_ATTEMPTS: 5,
+  RATE_LIMIT_WINDOW: 60,
+  MAX_REQUESTS_PER_WINDOW: 3,
+};
+
+// Generate random 6-digit OTP
+function generateOtpCode(): string {
+  const min = Math.pow(10, OTP_CONFIG.LENGTH - 1);
+  const max = Math.pow(10, OTP_CONFIG.LENGTH) - 1;
+  return String(Math.floor(Math.random() * (max - min + 1)) + min);
+}
+
+// Supabase admin client
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return createClient(url, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+// Validate email
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// Validate purpose
+function isValidPurpose(purpose: string): boolean {
+  return ['registration', 'forgot_password', 'email_change', 'admin_login'].includes(purpose);
+}
+
+// Check rate limit
+async function checkRateLimit(supabase: SupabaseClient, email: string, purpose: string) {
+  // Clean up expired rate limits
+  await supabase
+    .from('otp_rate_limits')
+    .delete()
+    .lt('window_end', new Date().toISOString());
+
+  const { data: rateLimit } = await supabase
+    .from('otp_rate_limits')
+    .select('*')
+    .eq('email', email.toLowerCase())
+    .eq('purpose', purpose)
+    .gt('window_end', new Date().toISOString())
+    .single();
+
+  if (rateLimit) {
+    const remaining = OTP_CONFIG.MAX_REQUESTS_PER_WINDOW - rateLimit.request_count;
+    if (remaining <= 0) {
+      const retryAfter = Math.ceil(
+        (new Date(rateLimit.window_end).getTime() - Date.now()) / 1000
+      );
+      return { allowed: false, retryAfter, remainingRequests: 0 };
+    }
+    return { allowed: true, remainingRequests: remaining };
+  }
+
+  return { allowed: true, remainingRequests: OTP_CONFIG.MAX_REQUESTS_PER_WINDOW };
+}
+
+// Increment rate limit
+async function incrementRateLimit(supabase: SupabaseClient, email: string, purpose: string) {
+  const windowStart = new Date();
+  const windowEnd = new Date(windowStart.getTime() + OTP_CONFIG.RATE_LIMIT_WINDOW * 1000);
+
+  const { data: existing } = await supabase
+    .from('otp_rate_limits')
+    .select('*')
+    .eq('email', email.toLowerCase())
+    .eq('purpose', purpose)
+    .gt('window_end', new Date().toISOString())
+    .single();
+
+  if (existing) {
+    await supabase
+      .from('otp_rate_limits')
+      .update({ request_count: existing.request_count + 1 })
+      .eq('id', existing.id);
+  } else {
+    await supabase.from('otp_rate_limits').insert({
+      email: email.toLowerCase(),
+      purpose,
+      window_start: windowStart.toISOString(),
+      window_end: windowEnd.toISOString(),
+      request_count: 1,
+    });
+  }
+}
+
+// Send OTP email
+async function sendOtpEmail(email: string, otpCode: string, purpose: string) {
+  const subjects: Record<string, string> = {
+    registration: 'Verify your SitesBD account',
+    forgot_password: 'Reset your SitesBD password',
+    email_change: 'Confirm your new email address',
+    admin_login: 'SitesBD Admin Login Verification',
+  };
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/otp/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        subject: subjects[purpose] || 'Verification Code',
+        html: `<h1>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></h1><p>This code will expire in 5 minutes.</p>`,
+      }),
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    const { email, purpose } = body;
+
+    if (!email || !isValidEmail(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email address' },
+        { status: 400 }
+      );
+    }
+
+    if (!purpose || !isValidPurpose(purpose)) {
+      return NextResponse.json(
+        { error: 'Invalid purpose' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = getSupabaseAdmin();
+
+    // Check rate limit
+    const rateLimitResult = await checkRateLimit(supabase, email, purpose);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { 
+          error: 'Rate limit exceeded',
+          retryAfter: rateLimitResult.retryAfter,
+          remainingRequests: rateLimitResult.remainingRequests,
+        },
+        { status: 429 }
+      );
+    }
+
+    // Expire any existing pending OTPs
+    await supabase
+      .from('email_otps')
+      .update({ status: 'expired' })
+      .eq('email', email.toLowerCase())
+      .eq('purpose', purpose)
+      .eq('status', 'pending');
+
+    // Generate new OTP
+    const otpCode = generateOtpCode();
+    const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRATION_SECONDS * 1000);
+
+    // Store OTP
+    const { error } = await supabase
+      .from('email_otps')
+      .insert({
+        email: email.toLowerCase(),
+        otp_code: otpCode,
+        purpose,
+        status: 'pending',
+        expires_at: expiresAt.toISOString(),
+        attempt_count: 0,
+      });
+
+    if (error) {
+      console.error('Failed to store OTP:', error);
+      return NextResponse.json(
+        { error: 'Failed to generate OTP' },
+        { status: 500 }
+      );
+    }
+
+    // Increment rate limit
+    await incrementRateLimit(supabase, email, purpose);
+
+    // Send email (non-blocking, don't fail if email fails)
+    await sendOtpEmail(email, otpCode, purpose);
+
+    return NextResponse.json({
+      success: true,
+      expiresAt: expiresAt.toISOString(),
+      remainingRequests: rateLimitResult.remainingRequests,
+    });
+
+  } catch (error) {
+    console.error('OTP generate error:', error);
+    return NextResponse.json(
+      { error: 'Server error' },
+      { status: 500 }
+    );
+  }
+}
