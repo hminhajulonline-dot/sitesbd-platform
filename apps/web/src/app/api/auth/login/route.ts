@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!authData.user) {
+    if (!authData.user || !authData.session) {
       return NextResponse.json(
         { error: 'Failed to sign in' },
         { status: 500 }
@@ -68,18 +68,32 @@ export async function POST(request: NextRequest) {
       redirectUrl = '/admin/dashboard';
     }
 
-    return NextResponse.json({
+    // Create response with session data
+    const response = NextResponse.json({
       success: true,
       user: {
         id: authData.user.id,
         email: authData.user.email,
       },
-      session: {
-        access_token: authData.session?.access_token,
-        refresh_token: authData.session?.refresh_token,
-      },
       redirectUrl,
     });
+
+    // Set session cookies for middleware authentication
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+    };
+
+    response.cookies.set('sb-access-token', authData.session.access_token, cookieOptions);
+    response.cookies.set('sb-refresh-token', authData.session.refresh_token, {
+      ...cookieOptions,
+      httpOnly: false, // Refresh token needs to be accessible for token refresh
+    });
+
+    return response;
 
   } catch (error) {
     console.error('Login error:', error);
