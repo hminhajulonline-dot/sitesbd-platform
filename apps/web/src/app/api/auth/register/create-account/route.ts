@@ -13,10 +13,44 @@ function logRegistrationFlow(stage: string, data: Record<string, unknown>) {
   console.log(`[Registration Flow - ${stage}]:`, JSON.stringify(data, null, 2));
 }
 
-// Supabase client
+// Validate environment variables on startup
+function validateEnvironment() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL is missing");
+  }
+
+  if (!serviceRoleKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is missing");
+  }
+
+  if (!anonKey) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is missing");
+  }
+
+  console.log('[Registration Flow - ENV_VALIDATED]', {
+    supabaseUrl: supabaseUrl ? '✓ set' : '✗ missing',
+    serviceRoleKey: serviceRoleKey ? '✓ set (service-role)' : '✗ missing',
+    anonKey: anonKey ? '✓ set (anon)' : '✗ missing',
+    usingServiceRoleForAdmin: true,
+  });
+}
+
+// Supabase admin client (uses service role key)
 function getSupabaseAdmin(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  
+  console.log('[Registration Flow - CLIENT_INIT]', {
+    keyType: 'service-role',
+    url: url,
+    hasKey: !!serviceRoleKey,
+    keyPrefix: serviceRoleKey?.substring(0, 8) + '...',
+  });
+
   return createClient(url, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -30,6 +64,9 @@ function getSupabaseAdmin(): SupabaseClient {
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate environment on every request
+    validateEnvironment();
+
     const body = await request.json();
 
     const { email, password, fullName, phone, otpVerified } = body;
