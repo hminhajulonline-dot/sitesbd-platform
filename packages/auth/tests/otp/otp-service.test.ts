@@ -1,38 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-// Mock Supabase client
-const createMockSupabaseClient = () => {
-  const mockData: Record<string, any[]> = {
-    email_otps: [],
-  };
-
-  return {
-    from: vi.fn((table: string) => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-          then: vi.fn(),
-        })),
-        gt: vi.fn().mockReturnThis(),
-        in: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({ data: null, error: null }),
-      })),
-      insert: vi.fn().mockResolvedValue({ data: null, error: null }),
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
-      }),
-      delete: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
-        in: vi.fn().mockResolvedValue({ data: null, error: null }),
-      }),
-      upsert: vi.fn().mockResolvedValue({ data: null, error: null }),
-    })),
-    _setData: (table: string, data: any[]) => {
-      mockData[table] = data;
-    },
-    _getData: (table: string) => mockData[table],
-  };
-};
+import { describe, it, expect } from 'vitest';
 
 // ============================================
 // OTP Configuration Tests
@@ -392,7 +358,7 @@ describe('Duplicate OTP Request', () => {
   });
 
   it('should only have one active OTP per email + purpose', () => {
-    const activeOtps = new Map<string, any>();
+    const activeOtps = new Map<string, { code: string; status: string; createdAt: Date }>();
 
     const generateOtp = (email: string, purpose: string) => {
       const key = `${email}:${purpose}`;
@@ -423,14 +389,15 @@ describe('Duplicate OTP Request', () => {
     expect(otp2).not.toBe(otp1); // Different codes
 
     // Generate OTP for different purpose
-    const otp3 = generateOtp('user@example.com', 'forgot_password');
+    generateOtp('user@example.com', 'forgot_password');
     expect(activeOtps.size).toBe(2); // Now two OTPs (different purposes)
   });
 
   it('should handle race condition with upsert', async () => {
     // Simulate concurrent OTP requests
+    type OtpRecord = { code: string; purpose: string } | null;
     const simulateUpsert = (
-      existingOtp: any,
+      existingOtp: OtpRecord,
       newOtp: { code: string; purpose: string }
     ): { success: boolean; code: string } => {
       if (existingOtp) {
@@ -461,7 +428,7 @@ describe('Duplicate OTP Request', () => {
 
   it('should clear previous OTP before generating new one', async () => {
     const simulateOtpReplacement = () => {
-      let existingOtp: any = { code: '111111', status: 'pending' };
+      let existingOtp: { code: string; status: string } | null = { code: '111111', status: 'pending' };
 
       // Before generating new OTP, delete existing
       if (existingOtp) {
