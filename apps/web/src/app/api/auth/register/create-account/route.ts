@@ -22,12 +22,6 @@ function getSupabaseAdmin(): SupabaseClient {
   });
 }
 
-function getSupabaseClient(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, anonKey);
-}
-
 // ============================================
 // POST /api/auth/register/create-account
 // ============================================
@@ -143,10 +137,11 @@ export async function POST(request: NextRequest) {
       hasFullName: !!fullName,
       hasPhone: !!phone,
       email_confirm: true,
+      usingServiceRole: true,
     });
 
-    const supabase = getSupabaseClient();
-    const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
+    // Use admin client (service role key) for user creation
+    const { data: authData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true, // Disable confirmation email - OTP is the verification
@@ -163,7 +158,6 @@ export async function POST(request: NextRequest) {
       signUpError: signUpError ? {
         message: signUpError.message,
         code: signUpError.code,
-        status: signUpError.status,
         name: signUpError.name,
       } : null,
     });
@@ -172,7 +166,6 @@ export async function POST(request: NextRequest) {
       logRegistrationFlow('SIGNUP_ERROR', {
         message: signUpError.message,
         code: signUpError.code,
-        status: signUpError.status,
         name: signUpError.name,
       });
 
