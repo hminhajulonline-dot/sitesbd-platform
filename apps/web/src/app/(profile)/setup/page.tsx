@@ -19,10 +19,19 @@ import { AuthButton } from '@sitesbd/ui/components/auth/auth-button';
 import { AuthAlert } from '@sitesbd/ui/components/auth/auth-alert';
 import { ArrowLeft } from 'lucide-react';
 
+// Generate cryptographically secure customer ID: SB-XXXXX
+function generateCustomerId(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluding confusing chars (0,O,1,I)
+  const array = new Uint32Array(6);
+  crypto.getRandomValues(array);
+  return 'SB-' + Array.from(array, (x) => chars[x % chars.length]).join('');
+}
+
 // Validation schema
 const setupSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().optional(),
+  address: z.string().optional(),
 });
 
 type SetupFormData = z.infer<typeof setupSchema>;
@@ -125,6 +134,7 @@ export default function ProfileSetupPage() {
         .update({
           full_name: data.fullName,
           phone: data.phone || null,
+          address: data.address || null,
           status: 'active', // Mark as verified after profile completion
           profile_verified: true, // Mark profile as verified
         })
@@ -137,9 +147,9 @@ export default function ProfileSetupPage() {
         return;
       }
 
-      // Create customer ID if it doesn't exist
+      // Create customer ID if it doesn't exist (cryptographically secure)
       if (!existingProfile?.customer_id) {
-        const customerId = `CUS-${Date.now()}-${user.id.slice(0, 8).toUpperCase()}`;
+        const customerId = generateCustomerId();
         await supabaseAdmin
           .from('profiles')
           .update({ customer_id: customerId })
@@ -209,6 +219,22 @@ export default function ProfileSetupPage() {
             />
             {errors.phone && (
               <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Address
+            </label>
+            <textarea
+              id="address"
+              {...register('address')}
+              rows={3}
+              className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20 focus:border-[#2563eb] transition-colors resize-none"
+              placeholder="Enter your complete address"
+            />
+            {errors.address && (
+              <p className="mt-1 text-sm text-red-500">{errors.address.message}</p>
             )}
           </div>
 

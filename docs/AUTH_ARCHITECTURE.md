@@ -472,3 +472,123 @@ const canManageBilling = await permResolver.hasAllPermissions(userId, [
    - All auth events logged
    - Failed login attempts
    - Permission changes
+
+---
+
+## PRD Architecture Implementation
+
+### Subdomain Architecture
+
+| Subdomain | Purpose | Authentication |
+|-----------|---------|----------------|
+| www.esite.top | Marketing site (no auth) | Public |
+| dashboard.esite.top | User application | Required (session cookie) |
+| admin.esite.top | Admin application | Required + Admin role |
+
+### Registration Flow (OTP-Based)
+
+```
+User visits dashboard.esite.top/register
+        │
+        ▼
+    Enter Email
+        │
+        ▼
+    Check if email exists ──→ "Email already registered"
+        │
+        ▼ (new email)
+    Generate OTP & Send Email
+        │
+        ▼
+    OTP Verification (6-digit code, 5 min expiry)
+        │
+        ▼ (OTP verified)
+    Set Password (strong password requirements)
+        │
+        ▼
+    Create Account (service role key)
+        │
+        ▼
+    Create Session (set cookie)
+        │
+        ▼
+    Redirect to /onboarding
+        │
+        ▼
+    Profile Completion (full name, phone, address)
+        │
+        ▼
+    Generate customer_id (SB-XXXXX format)
+        │
+        ▼
+    Redirect to /dashboard
+```
+
+### Profile Status Flow
+
+```
+Registration Complete → status: 'pending'
+        │
+        ▼
+    Profile Setup Complete → status: 'active'
+        │
+        ▼
+    Admin Review → status: 'profile_verified'
+        │
+        ▼ (if violations)
+    Suspended → status: 'suspended'
+```
+
+### Session Cookie Configuration
+
+| Cookie | HttpOnly | Secure | SameSite | Max Age |
+|--------|----------|--------|----------|---------|
+| sb-access-token | Yes | Yes (prod) | Lax | 7 days |
+| sb-refresh-token | No | Yes (prod) | Lax | 7 days |
+
+### Customer ID Format
+
+```
+SB-XXXXX (cryptographically secure)
+
+Example: SB-A3K7M2
+- 5 random alphanumeric characters
+- Excludes confusing characters (0, O, 1, I, L)
+- Generated using crypto.getRandomValues()
+```
+
+### Immutable Fields After Verification
+
+Once a user's email and mobile number are verified via OTP:
+- Email cannot be changed
+- Mobile number cannot be changed
+
+### Middleware Security Rules
+
+```typescript
+// dashboard.esite.top/* routes
+- Requires: Valid session cookie (sb-access-token)
+- Without session: Redirect to /login
+
+// admin.esite.top/* routes
+- Requires: Valid session + Admin role
+- Without session: Redirect to /login
+- Without admin role: 403 Forbidden or redirect to /dashboard
+```
+
+### Password Requirements
+
+- Minimum 8 characters
+- At least one uppercase letter
+- At least one lowercase letter
+- At least one number
+- At least one special character
+
+### OTP Configuration
+
+| Setting | Value |
+|---------|-------|
+| Code Length | 6 digits |
+| Expiry | 5 minutes |
+| Max Attempts | 3 per code |
+| Resend Cooldown | 60 seconds |
