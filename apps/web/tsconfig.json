@@ -5,7 +5,8 @@
       "@/*": ["./src/*"],
       "@sitesbd/shared/*": ["../../packages/shared/src/*"],
       "@sitesbd/ui/*": ["../../packages/ui/src/*"],
-      "@sitesbd/database/*": ["../../packages/database/src/*"]
+      "@sitesbd/database/*": ["../../packages/database/src/*"],
+      "@sitesbd/auth/*": ["../../packages/auth/src/*"]
     },
     "allowJs": true,
     "incremental": true,
