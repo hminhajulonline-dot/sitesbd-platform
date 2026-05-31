@@ -218,8 +218,10 @@ describe('Forgot Password Flow', () => {
       
       const data = await response.json();
       
-      // Should have error message
-      expect(data).toHaveProperty('error').or.toHaveProperty('message');
+      // Should have error message (either 'error' or 'message' property)
+      expect(
+        data && ('error' in data || 'message' in data)
+      ).toBe(true);
     });
   });
 
@@ -237,8 +239,10 @@ describe('Forgot Password Flow', () => {
       
       const data = await response.json();
       
-      // Should indicate OTP is expired or invalid
-      expect(data).toHaveProperty('error').or.toHaveProperty('message');
+      // Should indicate OTP is expired or invalid (either 'error' or 'message' property)
+      expect(
+        data && ('error' in data || 'message' in data)
+      ).toBe(true);
     });
   });
 });
