@@ -9,11 +9,16 @@
     "./constants": "./src/constants/index.ts",
     "./types": "./src/types/index.ts",
     "./utils": "./src/utils/index.ts",
-    "./services": "./src/services/index.ts"
+    "./services": "./src/services/index.ts",
+    "./services/health": "./src/services/health/index.ts",
+    "./services/profile-completion": "./src/services/profile-completion.ts"
   },
   "scripts": {
     "lint": "exit 0",
     "type-check": "exit 0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
