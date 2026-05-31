@@ -33,6 +33,22 @@ export default function RegisterEmailPage() {
     setIsLoading(true);
 
     try {
+      // Check if email already exists first
+      const checkResponse = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const checkData = await checkResponse.json();
+
+      if (checkResponse.ok && checkData.exists) {
+        setError('This email is already registered. Please sign in instead.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Generate OTP
       const response = await fetch('/api/otp/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

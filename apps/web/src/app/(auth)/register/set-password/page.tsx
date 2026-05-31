@@ -96,13 +96,32 @@ export default function SetPasswordPage() {
         return;
       }
 
+      // Sign in the user immediately after account creation
+      const signInResponse = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      if (!signInResponse.ok) {
+        // Account created but sign in failed - redirect to login
+        sessionStorage.removeItem('registration_email');
+        sessionStorage.removeItem('registration_name');
+        sessionStorage.removeItem('otp_verified');
+        router.push('/login?registered=true');
+        return;
+      }
+
       // Clear session storage
       sessionStorage.removeItem('registration_email');
       sessionStorage.removeItem('registration_name');
       sessionStorage.removeItem('otp_verified');
 
-      // Redirect to login with success message
-      router.push('/login?registered=true');
+      // Redirect to setup/profile completion
+      router.push('/setup');
 
     } catch {
       setError('An unexpected error occurred. Please try again.');
