@@ -162,29 +162,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Expire any existing pending OTPs
+    // Expire any existing pending OTPs (delete is more reliable than update for unique constraint)
     await supabase
       .from('email_otps')
-      .update({ status: 'expired' })
+      .delete()
       .eq('email', email.toLowerCase())
       .eq('purpose', purpose)
-      .eq('status', 'pending');
+      .in('status', ['pending', 'expired']);
 
     // Generate new OTP
     const otpCode = generateOtpCode();
     const expiresAt = new Date(Date.now() + OTP_CONFIG.EXPIRATION_SECONDS * 1000);
 
-    // Store OTP
+    // Store OTP using upsert to avoid race conditions with unique constraint
     const { error } = await supabase
       .from('email_otps')
-      .insert({
-        email: email.toLowerCase(),
-        otp_code: otpCode,
-        purpose,
-        status: 'pending',
-        expires_at: expiresAt.toISOString(),
-        attempt_count: 0,
-      });
+      .upsert(
+        {
+          email: email.toLowerCase(),
+          otp_code: otpCode,
+          purpose,
+          status: 'pending',
+          expires_at: expiresAt.toISOString(),
+          attempt_count: 0,
+        },
+        {
+          onConflict: 'email,purpose',
+          ignoreDuplicates: false,
+        }
+      );
 
     if (error) {
       console.error('Failed to store OTP:', error);
