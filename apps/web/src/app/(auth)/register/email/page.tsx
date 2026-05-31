@@ -5,7 +5,7 @@
 // ============================================
 // User enters their email to receive OTP
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthHeader } from '@sitesbd/ui/components/auth/auth-header';
@@ -88,8 +88,8 @@ export default function RegisterEmailPage() {
   // Cooldown timer
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
-  // Check cooldown timer
-  useState(() => {
+  // BUG #5 FIX: Check cooldown timer using useEffect
+  useEffect(() => {
     if (cooldownEnd) {
       const interval = setInterval(() => {
         const remaining = Math.max(0, Math.ceil((cooldownEnd - Date.now()) / 1000));
@@ -101,7 +101,7 @@ export default function RegisterEmailPage() {
       }, 1000);
       return () => clearInterval(interval);
     }
-  });
+  }, [cooldownEnd]);
 
   return (
     <div className="space-y-6">
