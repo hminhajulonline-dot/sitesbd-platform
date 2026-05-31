@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { sendEmail } from './email-service';
 
 // OTP Configuration
 const OTP_CONFIG = {
@@ -101,7 +102,7 @@ async function incrementRateLimit(supabase: SupabaseClient, email: string, purpo
   }
 }
 
-// Send OTP email
+// Send OTP email using direct nodemailer (not API route)
 async function sendOtpEmail(email: string, otpCode: string, purpose: string): Promise<{ success: boolean; error?: string }> {
   const subjects: Record<string, string> = {
     registration: 'Verify your SitesBD account',
@@ -117,34 +118,17 @@ async function sendOtpEmail(email: string, otpCode: string, purpose: string): Pr
     SMTP_PASSWORD: process.env.SMTP_PASSWORD ? 'SET' : 'MISSING',
   });
 
-  try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    const endpoint = `${appUrl}/api/otp/send-email`;
-    
-    console.log('[OTP] Calling send-email endpoint:', endpoint);
+  const html = `<h1>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></h1><p>This code will expire in 5 minutes.</p>`;
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: email,
-        subject: subjects[purpose] || 'Verification Code',
-        html: `<h1>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></h1><p>This code will expire in 5 minutes.</p>`,
-      }),
-    });
+  // Send email directly using nodemailer from @sitesbd/auth package
+  const result = await sendEmail(email, subjects[purpose] || 'Verification Code', html);
 
-    const responseData = await response.json();
-    console.log('[OTP] Send-email response:', { status: response.status, data: responseData });
-
-    if (!response.ok) {
-      return { success: false, error: responseData.error || 'Email send failed' };
-    }
-
+  if (result.success) {
+    console.log('[OTP] Email send success');
     return { success: true };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[OTP] Send-email error:', errorMessage);
-    return { success: false, error: errorMessage };
+  } else {
+    console.log('[OTP] Email send failure:', result.error);
+    return { success: false, error: result.error || 'Failed to send email' };
   }
 }
 

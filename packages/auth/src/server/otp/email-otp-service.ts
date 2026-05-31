@@ -299,7 +299,93 @@ export async function generateOtp(
 // ============================================
 
 /**
- * Send OTP via email using SMTP
+ * Send email using nodemailer (server-side)
+ */
+interface SendEmailResult {
+  success: boolean;
+  messageId?: string;
+  error?: string;
+}
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<SendEmailResult> {
+  const smtpConfig = getSmtpConfig();
+
+  console.log('[Email] Starting email send');
+  console.log('[Email] SMTP Config Check:', {
+    SMTP_HOST: process.env.SMTP_HOST ? '***' : 'MISSING',
+    SMTP_USER: process.env.SMTP_USER ? '***' : 'MISSING',
+    SMTP_PASSWORD: process.env.SMTP_PASSWORD ? 'SET' : 'MISSING',
+  });
+
+  if (!smtpConfig) {
+    console.log('[Email] SMTP not configured, simulating send:');
+    console.log(`  To: ${to}`);
+    console.log(`  Subject: ${subject}`);
+    return {
+      success: true,
+      messageId: 'simulated',
+    };
+  }
+
+  console.log('[Email] SMTP configured, creating transporter...');
+  console.log('[Email] SMTP Config:', {
+    host: smtpConfig.host,
+    port: smtpConfig.port,
+    secure: smtpConfig.secure,
+    user: smtpConfig.auth.user,
+  });
+
+  try {
+    const nodemailer = await import('nodemailer');
+    
+    const transporter = nodemailer.createTransport({
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      auth: {
+        user: smtpConfig.auth.user,
+        pass: smtpConfig.auth.pass,
+      },
+      connectionTimeout: 10000,
+    });
+
+    console.log('[Email] Verifying transporter connection...');
+    await transporter.verify();
+    console.log('[Email] Transporter verified, sending email...');
+
+    const info = await transporter.sendMail({
+      from: smtpConfig.from,
+      to,
+      subject,
+      html,
+    });
+
+    console.log('[Email] Email sent successfully:', {
+      messageId: info.messageId,
+      to,
+      subject,
+    });
+
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Email] Failed to send email:', errorMessage);
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Send OTP via email using SMTP (direct nodemailer, no API route)
  */
 export async function sendOtp(
   email: string,
@@ -307,76 +393,64 @@ export async function sendOtp(
   purpose: OtpPurpose,
   additionalData?: { fullName?: string; resetLink?: string }
 ): Promise<{ success: boolean; error?: string }> {
-  const smtpConfig = getSmtpConfig();
+  console.log('[OTP] Email send started');
+  console.log('[OTP] SMTP Config Check:', {
+    SMTP_HOST: process.env.SMTP_HOST ? '***' : 'MISSING',
+    SMTP_USER: process.env.SMTP_USER ? '***' : 'MISSING',
+    SMTP_PASSWORD: process.env.SMTP_PASSWORD ? 'SET' : 'MISSING',
+  });
 
-  if (!smtpConfig) {
-    console.warn('SMTP not configured, OTP will be logged instead');
-    console.log(`[OTP] Email: ${email}, Code: ${otpCode}, Purpose: ${purpose}`);
+  const purposeMessages: Record<OtpPurpose, { subject: string; body: string }> = {
+    registration: {
+      subject: 'Verify your SitesBD account',
+      body: `
+        <h1>Welcome to SitesBD!</h1>
+        <p>Hi${additionalData?.fullName ? ` ${additionalData.fullName}` : ''},</p>
+        <p>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></p>
+        <p>This code will expire in 5 minutes.</p>
+        <p>If you didn't request this code, please ignore this email.</p>
+      `,
+    },
+    forgot_password: {
+      subject: 'Reset your SitesBD password',
+      body: `
+        <h1>Password Reset</h1>
+        <p>You requested a password reset for your SitesBD account.</p>
+        <p>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></p>
+        <p>This code will expire in 5 minutes.</p>
+        <p>If you didn't request this reset, please ignore this email and your password will remain unchanged.</p>
+      `,
+    },
+    email_change: {
+      subject: 'Confirm your new email address',
+      body: `
+        <h1>Email Change Confirmation</h1>
+        <p>You requested to change your email address to this one.</p>
+        <p>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></p>
+        <p>This code will expire in 5 minutes.</p>
+      `,
+    },
+    admin_login: {
+      subject: 'SitesBD Admin Login Verification',
+      body: `
+        <h1>Admin Login Verification</h1>
+        <p>Your admin login verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></p>
+        <p>This code will expire in 5 minutes.</p>
+      `,
+    },
+  };
+
+  const emailContent = purposeMessages[purpose];
+
+  // Send email directly using nodemailer (not via API route)
+  const result = await sendEmail(email, emailContent.subject, emailContent.body);
+
+  if (result.success) {
+    console.log('[OTP] Email send success');
     return { success: true };
-  }
-
-  try {
-    const purposeMessages: Record<OtpPurpose, { subject: string; body: string }> = {
-      registration: {
-        subject: 'Verify your SitesBD account',
-        body: `
-          <h1>Welcome to SitesBD!</h1>
-          <p>Hi${additionalData?.fullName ? ` ${additionalData.fullName}` : ''},</p>
-          <p>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></p>
-          <p>This code will expire in 5 minutes.</p>
-          <p>If you didn't request this code, please ignore this email.</p>
-        `,
-      },
-      forgot_password: {
-        subject: 'Reset your SitesBD password',
-        body: `
-          <h1>Password Reset</h1>
-          <p>You requested a password reset for your SitesBD account.</p>
-          <p>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></p>
-          <p>This code will expire in 5 minutes.</p>
-          <p>If you didn't request this reset, please ignore this email and your password will remain unchanged.</p>
-        `,
-      },
-      email_change: {
-        subject: 'Confirm your new email address',
-        body: `
-          <h1>Email Change Confirmation</h1>
-          <p>You requested to change your email address to this one.</p>
-          <p>Your verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></p>
-          <p>This code will expire in 5 minutes.</p>
-        `,
-      },
-      admin_login: {
-        subject: 'SitesBD Admin Login Verification',
-        body: `
-          <h1>Admin Login Verification</h1>
-          <p>Your admin login verification code is: <strong style="font-size: 24px; letter-spacing: 4px;">${otpCode}</strong></p>
-          <p>This code will expire in 5 minutes.</p>
-        `,
-      },
-    };
-
-    const emailContent = purposeMessages[purpose];
-
-    // Send email via fetch to our API route (for server-side SMTP)
-    const response = await fetch('/api/otp/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: email,
-        subject: emailContent.subject,
-        html: emailContent.body,
-      }),
-    });
-
-    if (!response.ok) {
-      const data = await response.json() as { error?: string };
-      return { success: false, error: data.error || 'Failed to send email' };
-    }
-
-    return { success: true };
-  } catch {
-    return { success: false, error: 'Failed to send OTP email' };
+  } else {
+    console.log('[OTP] Email send failure:', result.error);
+    return { success: false, error: result.error || 'Failed to send email' };
   }
 }
 
@@ -626,6 +700,7 @@ export const EmailOtpService = {
   generateOtpCode,
   OTP_CONFIG,
   getSmtpConfig,
+  sendEmail,
 };
 
 export default EmailOtpService;
