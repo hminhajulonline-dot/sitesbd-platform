@@ -27,6 +27,7 @@ function getSupabaseClient(): SupabaseClient {
 // POST /api/auth/register/create-account
 // ============================================
 // Create user account after OTP verification
+// OTP IS the email verification - no confirmation email needed
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,15 +75,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Supabase Auth user
+    // IMPORTANT: email_confirm: true disables Supabase email confirmation
+    // because OTP verification already confirms the email
     const supabase = getSupabaseClient();
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+    const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          full_name: fullName,
-          phone: phone || null,
-        },
+      email_confirm: true, // Disable confirmation email - OTP is the verification
+      user_metadata: {
+        full_name: fullName,
+        phone: phone || null,
       },
     });
 
@@ -141,7 +143,7 @@ export async function POST(request: NextRequest) {
         id: authData.user.id,
         email: authData.user.email,
       },
-      message: 'Account created successfully. Please sign in.',
+      message: 'Account created successfully.',
     });
 
   } catch (error) {

@@ -3,6 +3,7 @@
 // ============================================
 // Profile Setup Page
 // Basic profile information setup
+// After setup: mark profile_verified, create customer ID, redirect to dashboard
 // ============================================
 
 import { useState, useEffect } from 'react';
@@ -32,6 +33,14 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+
+// Admin client for server-side operations
+function getSupabaseAdmin() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return createClient(supabaseUrl!, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 export default function ProfileSetupPage() {
   const router = useRouter();
@@ -66,7 +75,7 @@ export default function ProfileSetupPage() {
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, phone')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .single();
 
         if (profile) {
@@ -101,22 +110,44 @@ export default function ProfileSetupPage() {
         return;
       }
 
-      const { error: updateError } = await supabase
+      const supabaseAdmin = getSupabaseAdmin();
+
+      // Check if profile exists and get status
+      const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
-        .upsert({
-          user_id: user.id,
+        .select('id, customer_id, status')
+        .eq('id', user.id)
+        .single();
+
+      // Update profile with verification status
+      const { error: updateError } = await supabaseAdmin
+        .from('profiles')
+        .update({
           full_name: data.fullName,
           phone: data.phone || null,
-        });
+          status: 'active', // Mark as verified after profile completion
+          profile_verified: true, // Mark profile as verified
+        })
+        .eq('id', user.id);
 
       if (updateError) {
+        console.error('Profile update error:', updateError);
         setError(updateError.message);
         setIsLoading(false);
         return;
       }
 
-      // Redirect to preferences
-      router.push('/profile/preferences');
+      // Create customer ID if it doesn't exist
+      if (!existingProfile?.customer_id) {
+        const customerId = `CUS-${Date.now()}-${user.id.slice(0, 8).toUpperCase()}`;
+        await supabaseAdmin
+          .from('profiles')
+          .update({ customer_id: customerId })
+          .eq('id', user.id);
+      }
+
+      // Redirect to dashboard - OTP registration flow complete
+      router.push('/dashboard');
     } catch {
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
