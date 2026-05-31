@@ -31,10 +31,14 @@ function validateEnvironment() {
     throw new Error("NEXT_PUBLIC_SUPABASE_ANON_KEY is missing");
   }
 
+  // CRITICAL: Log key details for debugging
   console.log('[Registration Flow - ENV_VALIDATED]', {
     supabaseUrl: supabaseUrl ? '✓ set' : '✗ missing',
-    serviceRoleKey: serviceRoleKey ? '✓ set (service-role)' : '✗ missing',
-    anonKey: anonKey ? '✓ set (anon)' : '✗ missing',
+    serviceRoleKeyExists: !!serviceRoleKey,
+    serviceRoleKeyPrefix: serviceRoleKey?.substring(0, 20),
+    anonKeyExists: !!anonKey,
+    anonKeyPrefix: anonKey?.substring(0, 20),
+    keysAreDifferent: serviceRoleKey !== anonKey,
     usingServiceRoleForAdmin: true,
   });
 }
@@ -44,16 +48,26 @@ function getSupabaseAdmin(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
   
+  // CRITICAL: Log exactly which key is being used
   console.log('[Registration Flow - CLIENT_INIT]', {
     keyType: 'service-role',
     url: url,
-    hasKey: !!serviceRoleKey,
-    keyPrefix: serviceRoleKey?.substring(0, 8) + '...',
+    serviceRoleKeyExists: !!serviceRoleKey,
+    serviceRoleKeyPrefix: serviceRoleKey?.substring(0, 20) + '...',
+    expectedKeyLength: serviceRoleKey?.length,
   });
 
-  return createClient(url, serviceRoleKey, {
+  const client = createClient(url, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // Log the actual apikey header being sent
+  console.log('[Registration Flow - CLIENT_CREATED]', {
+    hasAuth: !!client.auth,
+    authType: typeof client.auth,
+  });
+
+  return client;
 }
 
 // ============================================
