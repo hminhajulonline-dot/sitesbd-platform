@@ -5,23 +5,16 @@
 // ============================================
 // Redirects to OTP-based password reset
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted) {
-      // Redirect to new OTP-based forgot password
-      router.replace('/forgot-password/verify-otp');
-    }
-  }, [mounted, router]);
+    // Redirect immediately on mount
+    router.replace('/forgot-password/verify-otp');
+  }, [router]);
 
   return (
     <div className="flex items-center justify-center min-h-[400px]">

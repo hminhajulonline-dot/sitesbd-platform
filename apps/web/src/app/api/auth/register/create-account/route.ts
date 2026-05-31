@@ -17,12 +17,6 @@ function getSupabaseAdmin(): SupabaseClient {
   });
 }
 
-function getSupabaseClient(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, anonKey);
-}
-
 // ============================================
 // POST /api/auth/register/create-account
 // ============================================
@@ -30,13 +24,24 @@ function getSupabaseClient(): SupabaseClient {
 // OTP IS the email verification - no confirmation email needed
 
 export async function POST(request: NextRequest) {
+  console.log('[Create Account] Starting account creation');
+  
   try {
     const body = await request.json();
 
     const { email, password, fullName, phone, otpVerified } = body;
 
+    console.log('[Create Account] Input received:', {
+      email,
+      hasPassword: !!password,
+      fullName,
+      phone,
+      otpVerified,
+    });
+
     // Validate input
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      console.log('[Create Account] Invalid email');
       return NextResponse.json(
         { error: 'Invalid email address' },
         { status: 400 }
@@ -44,6 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!password || password.length < 8) {
+      console.log('[Create Account] Password too short');
       return NextResponse.json(
         { error: 'Password must be at least 8 characters' },
         { status: 400 }
@@ -52,6 +58,7 @@ export async function POST(request: NextRequest) {
 
     // Check if OTP was verified
     if (!otpVerified) {
+      console.log('[Create Account] OTP not verified flag');
       return NextResponse.json(
         { error: 'Please verify your email first' },
         { status: 400 }
@@ -60,51 +67,88 @@ export async function POST(request: NextRequest) {
 
     // Check OTP verification status
     const supabaseAdmin = getSupabaseAdmin();
-    const { data: otp } = await supabaseAdmin
+    console.log('[Create Account] Checking OTP verification status for:', email.toLowerCase());
+    
+    const { data: otp, error: otpError } = await supabaseAdmin
       .from('email_otps')
-      .select('status, verified_at')
+      .select('status, verified_at, expires_at')
       .eq('email', email.toLowerCase())
       .eq('purpose', 'registration')
       .single();
 
+    console.log('[Create Account] OTP query result:', {
+      otpFound: !!otp,
+      otpStatus: otp?.status,
+      otpVerifiedAt: otp?.verified_at,
+      otpExpiresAt: otp?.expires_at,
+      otpError: otpError?.message,
+    });
+
     if (!otp || otp.status !== 'verified') {
+      console.log('[Create Account] OTP not verified in database');
       return NextResponse.json(
         { error: 'Email OTP not verified. Please verify your email first.' },
         { status: 400 }
       );
     }
 
-    // Create Supabase Auth user
-    // IMPORTANT: email_confirm: true disables Supabase email confirmation
-    // because OTP verification already confirms the email
-    const supabase = getSupabaseClient();
-    const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true, // Disable confirmation email - OTP is the verification
-      user_metadata: {
-        full_name: fullName,
-        phone: phone || null,
+    // Create Supabase Auth user using admin API directly
+    // Note: Regular supabase-js client doesn't have admin.createUser
+    // We need to use the Supabase Admin API endpoint
+    console.log('[Create Account] Creating user via admin API');
+    
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    
+    const adminResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': serviceRoleKey,
+        'Authorization': `Bearer ${serviceRoleKey}`,
       },
+      body: JSON.stringify({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: fullName,
+          phone: phone || null,
+        },
+      }),
     });
 
-    if (signUpError) {
+    const authData = await adminResponse.json();
+    console.log('[Create Account] Admin API response:', {
+      success: adminResponse.ok,
+      status: adminResponse.status,
+      hasUser: !!authData?.id,
+      error: authData?.msg || authData?.message,
+    });
+
+    if (!adminResponse.ok) {
+      const errorMsg = authData?.msg || authData?.message || 'Failed to create user';
+      console.log('[Create Account] Admin API error:', errorMsg);
       return NextResponse.json(
-        { error: signUpError.message },
+        { error: errorMsg },
         { status: 400 }
       );
     }
 
-    if (!authData.user) {
+    if (!authData.id) {
+      console.log('[Create Account] No user ID returned');
       return NextResponse.json(
         { error: 'Failed to create user' },
         { status: 500 }
       );
     }
 
+    console.log('[Create Account] User created successfully:', authData.id);
+
     // Create profile
+    console.log('[Create Account] Creating profile');
     const { error: profileError } = await supabaseAdmin.from('profiles').insert({
-      id: authData.user.id,
+      id: authData.id,
       full_name: fullName,
       phone: phone || null,
       email: email.toLowerCase(),
@@ -112,11 +156,12 @@ export async function POST(request: NextRequest) {
     });
 
     if (profileError) {
-      console.error('Failed to create profile:', profileError);
+      console.error('[Create Account] Profile creation error:', profileError);
       // Don't fail - user was created
     }
 
     // Assign default user role
+    console.log('[Create Account] Assigning user role');
     const { data: userRole } = await supabaseAdmin
       .from('roles')
       .select('id')
@@ -125,7 +170,7 @@ export async function POST(request: NextRequest) {
 
     if (userRole) {
       await supabaseAdmin.from('user_roles').insert({
-        user_id: authData.user.id,
+        user_id: authData.id,
         role_id: userRole.id,
       });
     }
@@ -137,17 +182,21 @@ export async function POST(request: NextRequest) {
       .eq('email', email.toLowerCase())
       .eq('purpose', 'registration');
 
+    console.log('[Create Account] Account creation complete');
     return NextResponse.json({
       success: true,
       user: {
-        id: authData.user.id,
-        email: authData.user.email,
+        id: authData.id,
+        email: authData.email,
       },
       message: 'Account created successfully.',
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('[Create Account] Unexpected error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { error: 'Server error' },
       { status: 500 }
