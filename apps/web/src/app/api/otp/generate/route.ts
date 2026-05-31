@@ -102,7 +102,7 @@ async function incrementRateLimit(supabase: SupabaseClient, email: string, purpo
 }
 
 // Send OTP email
-async function sendOtpEmail(email: string, otpCode: string, purpose: string) {
+async function sendOtpEmail(email: string, otpCode: string, purpose: string): Promise<{ success: boolean; error?: string }> {
   const subjects: Record<string, string> = {
     registration: 'Verify your SitesBD account',
     forgot_password: 'Reset your SitesBD password',
@@ -110,8 +110,20 @@ async function sendOtpEmail(email: string, otpCode: string, purpose: string) {
     admin_login: 'SitesBD Admin Login Verification',
   };
 
+  console.log('[OTP] Starting email send process');
+  console.log('[OTP] SMTP Config Check:', {
+    SMTP_HOST: process.env.SMTP_HOST ? '***' : 'MISSING',
+    SMTP_USER: process.env.SMTP_USER ? '***' : 'MISSING',
+    SMTP_PASSWORD: process.env.SMTP_PASSWORD ? 'SET' : 'MISSING',
+  });
+
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/otp/send-email`, {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+    const endpoint = `${appUrl}/api/otp/send-email`;
+    
+    console.log('[OTP] Calling send-email endpoint:', endpoint);
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -121,9 +133,18 @@ async function sendOtpEmail(email: string, otpCode: string, purpose: string) {
       }),
     });
 
-    return response.ok;
-  } catch {
-    return false;
+    const responseData = await response.json();
+    console.log('[OTP] Send-email response:', { status: response.status, data: responseData });
+
+    if (!response.ok) {
+      return { success: false, error: responseData.error || 'Email send failed' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[OTP] Send-email error:', errorMessage);
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -203,8 +224,23 @@ export async function POST(request: NextRequest) {
     // Increment rate limit
     await incrementRateLimit(supabase, email, purpose);
 
-    // Send email (non-blocking, don't fail if email fails)
-    await sendOtpEmail(email, otpCode, purpose);
+    // Send email
+    console.log('[OTP] Attempting to send OTP email...');
+    const emailResult = await sendOtpEmail(email, otpCode, purpose);
+    
+    if (!emailResult.success) {
+      console.error('[OTP] Email send failed:', emailResult.error);
+      // Return success but include email error for debugging
+      // We still return success because OTP was generated and stored
+      return NextResponse.json({
+        success: true,
+        expiresAt: expiresAt.toISOString(),
+        remainingRequests: rateLimitResult.remainingRequests,
+        emailWarning: emailResult.error || 'Failed to send verification email',
+      });
+    }
+
+    console.log('[OTP] OTP generated and email sent successfully');
 
     return NextResponse.json({
       success: true,
