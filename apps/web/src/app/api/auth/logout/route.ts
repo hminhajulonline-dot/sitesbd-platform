@@ -7,10 +7,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(_request: NextRequest) {
   try {
-    // Create response
+    // Create response with redirect URL for client
     const response = NextResponse.json({
       success: true,
       message: 'Logged out successfully',
+      redirectUrl: '/login',
     });
 
     // Clear session cookies by setting maxAge to 0
