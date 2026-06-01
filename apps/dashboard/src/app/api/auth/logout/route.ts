@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(_request: NextRequest) {
   try {
+    // Use environment variable for cookie domain (cross-subdomain session)
+    const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.sitesbd.com';
+
     // Create response with redirect URL for client
     const response = NextResponse.json({
       success: true,
@@ -15,11 +18,13 @@ export async function POST(_request: NextRequest) {
     });
 
     // Clear session cookies by setting maxAge to 0
+    // Use same domain as when cookies were set
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
       path: '/',
+      domain: cookieDomain,  // Same domain as when set
       maxAge: 0, // Expire immediately
     };
 

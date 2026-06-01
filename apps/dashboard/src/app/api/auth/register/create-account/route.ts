@@ -342,11 +342,15 @@ export async function POST(request: NextRequest) {
     });
 
     // Set session cookies for middleware authentication
+    // Use environment variable for cookie domain (cross-subdomain session)
+    const cookieDomain = process.env.NEXT_PUBLIC_COOKIE_DOMAIN || '.sitesbd.com';
+    
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
       path: '/',
+      domain: cookieDomain,  // Cross-subdomain session sharing
       maxAge: 60 * 60 * 24 * 7, // 1 week
     };
 
