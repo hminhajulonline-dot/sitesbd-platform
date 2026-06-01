@@ -75,9 +75,9 @@ async function hasAdminRole(supabaseUrl: string, supabaseAnonKey: string, access
 
     const user = await response.json();
     
-    // Check profile role
+    // Check profile role (BUG FIX: use user_id column, not id)
     const profileResponse = await fetch(
-      `${supabaseUrl}/rest/v1/profiles?id=eq.${user.id}&select=role`,
+      `${supabaseUrl}/rest/v1/profiles?user_id=eq.${user.id}&select=role`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
